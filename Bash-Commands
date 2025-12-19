@@ -1,0 +1,64 @@
+#Log into instance
+cd/Documents/projects
+ssh -i "pipeline.pem" ubuntu@54.84.83.9
+
+#set up directories for ec2
+mkdir -p ~/rna-seq-project/data/{raw_fastq,reference,geo}
+cd ~/rna-seq-project
+
+#install aws and others needed
+cd ~
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+sudo apt update
+sudo apt install -y unzip
+unzip awscliv2.zip
+sudo ./aws/install
+
+#verify aws installation
+aws --version
+
+#use ncbi public dataset to download, using s3
+# List of Run IDs
+RUNS=("SRR36353800" "SRR36353799" "SRR36353798" "SRR36353797" "SRR36353796" "SRR36353795")
+
+echo "Starting download from S3..."
+for ID in "${RUNS[@]}"; do
+    echo "Downloading $ID..."
+    aws s3 cp s3://sra-pub-run-odp/sra/$ID/$ID data/raw/ --no-sign-request
+done
+echo "All downloads complete."
+
+#verify the downloads
+ls -lh data/raw/
+
+#make the files from sra to fastq
+# Loop through all SRA files and convert
+for file in SRR*; do
+    echo "Processing $file..."
+    fasterq-dump --split-files --threads 4 "$file"
+done
+
+# Compress the resulting files to save space (Standard for pipelines)
+gzip *.fastq
+
+#verify fastq files
+ls -lh
+
+#make a samplesheet to map the IDs to biological conditions
+mkdir -p ~/rna-seq-project/config
+cat <<EOF > ~/rna-seq-project/config/samplesheet.csv
+sample,fastq_1,fastq_2,condition
+WT_1,data/raw/SRR36353800_1.fastq.gz,data/raw/SRR36353800_2.fastq.gz,WT
+WT_2,data/raw/SRR36353799_1.fastq.gz,data/raw/SRR36353799_2.fastq.gz,WT
+WT_3,data/raw/SRR36353798_1.fastq.gz,data/raw/SRR36353798_2.fastq.gz,WT
+KO_1,data/raw/SRR36353797_1.fastq.gz,data/raw/SRR36353797_2.fastq.gz,KO
+KO_2,data/raw/SRR36353796_1.fastq.gz,data/raw/SRR36353796_2.fastq.gz,KO
+KO_3,data/raw/SRR36353795_1.fastq.gz,data/raw/SRR36353795_2.fastq.gz,KO
+EOF
+
+#download references
+# Download Human Genome (GRCh38)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/GRCh38.primary_assembly.genome.fa.gz
+
+# Download Annotation (GTF)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/gencode.v46.annotation.gtf.gz
