@@ -5,7 +5,8 @@ nextflow.enable.dsl=2
  */
 process STAR_INDEX {
     tag "Indexing Reference"
-    publishDir "${params.base_dir}/data/reference/star_index", mode: 'copy'
+    // Use 'copy' so the index is easily accessible in your results folder later
+    publishDir "${params.outdir}/reference/star_index", mode: 'copy'
 
     input:
     path fasta
