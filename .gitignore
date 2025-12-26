@@ -1,0 +1,18 @@
+# Large data files
+data/raw/*.fastq.gz
+data/raw/SRR*
+data/reference/*.fa
+data/reference/*.gtf
+data/reference/star_index/
+*.fastq.gz
+
+# Nextflow work directory
+work/
+.nextflow/
+.nextflow.log*
+
+# Temporary files
+*.log
+nohup.out
+*_console.log
+*.local

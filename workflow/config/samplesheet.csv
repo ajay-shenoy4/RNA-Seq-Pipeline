@@ -1,0 +1,7 @@
+sample,fastq_1,fastq_2,condition
+WT_1,data/raw/SRR36353800_1.fastq.gz,data/raw/SRR36353800_2.fastq.gz,WT
+WT_2,data/raw/SRR36353799_1.fastq.gz,data/raw/SRR36353799_2.fastq.gz,WT
+WT_3,data/raw/SRR36353798_1.fastq.gz,data/raw/SRR36353798_2.fastq.gz,WT
+KO_1,data/raw/SRR36353797_1.fastq.gz,data/raw/SRR36353797_2.fastq.gz,KO
+KO_2,data/raw/SRR36353796_1.fastq.gz,data/raw/SRR36353796_2.fastq.gz,KO
+KO_3,data/raw/SRR36353795_1.fastq.gz,data/raw/SRR36353795_2.fastq.gz,KO
