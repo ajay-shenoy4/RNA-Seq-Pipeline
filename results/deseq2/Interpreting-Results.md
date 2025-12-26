@@ -16,22 +16,22 @@
 
 ## 2. Global Differential Expression
 
-Volcano Plot (salmon_volcano_plot.pdf)
+**Volcano Plot (salmon_volcano_plot.pdf)**
 
-What it is: A scatter plot comparing statistical significance ($-\log_{10} p$-value) against the magnitude of change ($\log_2$ Fold Change).
+- What it is: A scatter plot comparing statistical significance ($-\log_{10} p$-value) against the magnitude of change ($\log_2$ Fold Change).
 
-**How to read it:**
-- Right Side (Red): Genes upregulated in the KO.
-- Left Side (Blue): Genes downregulated in the KO.
-- Top: The most statistically significant genes.
+- **How to read it:**
+- - Right Side (Red): Genes upregulated in the KO.
+- - Left Side (Blue): Genes downregulated in the KO.
+- - Top: The most statistically significant genes.
 
-Your Result: With 5,155 DE genes, you should see a dense "V" shape. Look for DUS1L on the far left (downregulated).
+- Your Result: With 5,155 DE genes, you should see a dense "V" shape. Look for DUS1L on the far left (downregulated).
 
-MA Plot (salmon_ma_plot.pdf)
+**MA Plot (salmon_ma_plot.pdf)**
 
-What it is: Plots log-intensity (Mean Expression) on the x-axis and log-fold change on the y-axis.
+- What it is: Plots log-intensity (Mean Expression) on the x-axis and log-fold change on the y-axis.
 
-What to look for: This helps identify if fold-change estimates are biased by how lowly or highly expressed a gene is. Red dots represent genes with a padj < 0.05.
+- What to look for: This helps identify if fold-change estimates are biased by how lowly or highly expressed a gene is. Red dots represent genes with a padj < 0.05.
 
 ## 3. Top Gene Expression
 
