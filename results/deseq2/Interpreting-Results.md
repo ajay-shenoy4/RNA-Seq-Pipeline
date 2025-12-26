@@ -1,18 +1,18 @@
 ## 1. Sample Clustering & Quality Control
 
-PCA Plot (salmon_pca_plot.pdf)
+**PCA Plot (salmon_pca_plot.pdf)**
 
-What it is: A Principal Component Analysis that reduces thousands of gene expressions into two dimensions (PC1 and PC2).
+- What it is: A Principal Component Analysis that reduces thousands of gene expressions into two dimensions (PC1 and PC2).
 
-What to look for: You want to see the three WT samples cluster together and the three KO samples cluster together.
+- What to look for: You want to see the three WT samples cluster together and the three KO samples cluster together.
 
-Success Metric: If PC1 (the x-axis) separates your WT and KO groups, it means the "Condition" is the primary driver of difference in your data, rather than technical noise.
+- Success Metric: If PC1 (the x-axis) separates your WT and KO groups, it means the "Condition" is the primary driver of difference in your data, rather than technical noise.
 
-Sample Distance Heatmap (salmon_sample_distance_heatmap.pdf)
+**Sample Distance Heatmap (salmon_sample_distance_heatmap.pdf)**
 
-What it is: A "Euclidean distance" map showing how similar each sample is to every other sample.
+- What it is: A "Euclidean distance" map showing how similar each sample is to every other sample.
 
-What to look for: Darker blue blocks on the diagonal. You should see a clear 3x3 square for WT and a 3x3 square for KO. This confirms high reproducibility between your biological replicates.
+- What to look for: Darker blue blocks on the diagonal. You should see a clear 3x3 square for WT and a 3x3 square for KO. This confirms high reproducibility between your biological replicates.
 
 ## 2. Global Differential Expression
 
