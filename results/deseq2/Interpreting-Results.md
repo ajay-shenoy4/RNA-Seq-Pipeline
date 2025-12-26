@@ -21,9 +21,9 @@
 - What it is: A scatter plot comparing statistical significance ($-\log_{10} p$-value) against the magnitude of change ($\log_2$ Fold Change).
 
 - **How to read it:**
-- - Right Side (Red): Genes upregulated in the KO.
-- - Left Side (Blue): Genes downregulated in the KO.
-- - Top: The most statistically significant genes.
+  - Right Side (Red): Genes upregulated in the KO.
+  - Left Side (Blue): Genes downregulated in the KO.
+  - Top: The most statistically significant genes.
 
 - Your Result: With 5,155 DE genes, you should see a dense "V" shape. Look for DUS1L on the far left (downregulated).
 
