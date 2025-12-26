@@ -2,7 +2,7 @@
 
 End-to-end RNA-seq differential expression pipeline using Nextflow, Docker, and AWS.
 
-## 🎯 Project Overview
+## Project Overview
 
 This pipeline analyzes RNA-seq data comparing **wild-type (WT) vs DUS1L knockout (KO)** cells to identify differentially expressed genes.
 
@@ -11,7 +11,7 @@ This pipeline analyzes RNA-seq data comparing **wild-type (WT) vs DUS1L knockout
 - Paired-end Illumina sequencing
 - Human genome (GRCh38)
 
-## 🔬 Pipeline Steps
+## Pipeline Steps
 ```
 FASTQ Files
     ↓
@@ -26,14 +26,14 @@ DESeq2 (Differential Expression Analysis)
 Visualizations (PCA, Volcano, Heatmaps)
 ```
 
-## 📊 Key Results
+## Key Results
 
 - **22,213 genes** analyzed after filtering
 - **5,155 significantly DE genes** (FDR < 0.05)
   - 2,533 upregulated in KO
   - 2,622 downregulated in KO
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 - **Workflow Manager**: Nextflow (DSL2)
 - **Containerization**: Docker
@@ -41,7 +41,7 @@ Visualizations (PCA, Volcano, Heatmaps)
 - **Tools**: FastQC, Fastp, Salmon, DESeq2
 - **Languages**: Groovy (Nextflow), R (DESeq2)
 
-## 📁 Repository Structure
+## Repository Structure
 ```
 rna-seq-project/
 ├── workflow/
@@ -61,7 +61,7 @@ rna-seq-project/
 └── README.md
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Nextflow ≥ 25.10
@@ -99,11 +99,12 @@ aws ec2 run-instances \
 ssh -i "your-key.pem" ubuntu@YOUR-IP
 # ... (setup and run as above)
 ```
+### Both Local Executation and AWS Executation explained more in Bash-Commands file
 
 **Cost**: ~$0.50/hour (r6i.2xlarge)
 **Runtime**: ~45 minutes for full pipeline
 
-## 📈 Key Visualizations
+## Key Visualizations
 
 ### PCA Plot
 Shows clear separation between WT and KO samples along PC1.
@@ -117,7 +118,7 @@ Distribution of differential expression across expression levels.
 ### Heatmap
 Top 50 most significantly DE genes cluster by condition.
 
-## 📊 Output Files
+## Output Files
 
 ### Quantification
 - `results/salmon/*/quant.sf` - Gene-level abundance estimates
@@ -132,22 +133,22 @@ Top 50 most significantly DE genes cluster by condition.
 - `results/deseq2/salmon_ma_plot.pdf`
 - `results/deseq2/salmon_top50_genes_heatmap.pdf`
 
-## 🔧 Configuration
+## Configuration
 
 Edit `nextflow.config` to customize:
 - CPU/memory allocation
 - Enable STAR alignment (`run_star = true`)
 - Change reference genome paths
 
-## 📝 Citation
+## Citation
 
 Dataset: GSE312810 - DUS1L knockout RNA-seq study
 
-## 📄 License
+## License
 
 MIT License
 
-## 👤 Author
+## Author
 
 Ajay Shenoy
 - GitHub: [@ajay-shenoy4](https://github.com/ajay-shenoy4)
