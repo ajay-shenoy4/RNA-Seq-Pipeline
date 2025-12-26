@@ -14,7 +14,9 @@ What it is: A "Euclidean distance" map showing how similar each sample is to eve
 
 What to look for: Darker blue blocks on the diagonal. You should see a clear 3x3 square for WT and a 3x3 square for KO. This confirms high reproducibility between your biological replicates.
 
-## 2. Global Differential ExpressionVolcano Plot (salmon_volcano_plot.pdf)
+## 2. Global Differential Expression
+
+Volcano Plot (salmon_volcano_plot.pdf)
 
 What it is: A scatter plot comparing statistical significance ($-\log_{10} p$-value) against the magnitude of change ($\log_2$ Fold Change).
 
