@@ -62,3 +62,260 @@ wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/GRCh38
 
 # Download Annotation (GTF)
 wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/gencode.v46.annotation.gtf.gz
+
+#make repo on github, make an access key
+#pushes nextflow.config and main.nf to github
+git remote set-url origin https://github.com/ajay-shenoy4/RNA-Seq-Pipeline.git
+git push -u origin main
+
+#now on aws terminal
+# Initialize git if you haven't
+git init
+
+# Link it to the correct GitHub repo
+git remote add origin https://github.com/ajay-shenoy4/RNA-Seq-Pipeline.git
+
+# Fetch the code but don't overwrite everything yet
+git fetch origin main
+
+# Force pull the files onto AWS
+git reset --hard origin/main
+
+#dry run nextflow
+nextflow run workflow/main.nf
+
+#build docker container
+FROM mambaorg/micromamba:1.5.8
+
+# Install bioinformatics tools
+RUN micromamba install -y -n base -c conda-forge -c bioconda \
+    fastqc=0.12.1 \
+    fastp=0.23.4 \
+    star=2.7.11b \
+    subread=2.0.6 \
+    samtools=1.19 \
+    r-base=4.3.1 \
+    && micromamba clean -a -y
+
+# Set path so Nextflow can find the tools
+ENV PATH=/opt/conda/bin:$PATH
+
+#call docker build
+docker build -t rna-seq-pipeline:v1 .
+
+#install java
+# Update packages
+sudo apt-get update
+
+# Install Java 17 (recommended)
+sudo apt install -y openjdk-17-jre-headless
+
+# Verify installation
+java -version
+
+#install nextflow
+cd ~/rna-seq-project
+
+# Download the executable
+curl -s https://get.nextflow.io | bash
+
+#make nextflow globally accessible
+# Move the binary
+sudo mv nextflow /usr/local/bin/
+
+# Make it executable
+sudo chmod +x /usr/local/bin/nextflow
+
+# Verify it works
+nextflow -v
+
+#build the docker image and then verify
+docker build -t rna-seq-pipeline:v1 .
+docker images
+
+#run nextflow
+nextflow run workflow/main.nf
+
+#run star and nextflow and stuff with auto shutdown
+# Kill the current processes
+killall nextflow 2>/dev/null
+pkill -f auto_shutdown.sh 2>/dev/null
+
+# Wait a moment
+sleep 2
+
+# Start fresh with proper backgrounding
+cd ~/rna-seq-project
+
+# Start Nextflow
+nohup nextflow run workflow/main.nf -c nextflow.config > nextflow.log 2>&1 &
+
+# Give it a moment to initialize
+sleep 3
+
+# Start auto-shutdown monitor
+nohup ./auto_shutdown.sh > auto_shutdown_console.log 2>&1 &
+
+# Verify both are running properly
+echo "=== Running Processes ==="
+ps aux | grep -E "nextflow|auto_shutdown" | grep -v grep
+
+echo -e "\n=== Nextflow Log (last 15 lines) ==="
+tail -15 nextflow.log
+
+echo -e "\n=== Auto-shutdown Log (last 10 lines) ==="
+tail -10 auto_shutdown.log
+
+
+# Kill all stopped jobs
+kill $(jobs -p) 2>/dev/null
+
+# Restart auto-shutdown monitor
+cd ~/rna-seq-project
+nohup ./auto_shutdown.sh >> auto_shutdown.log 2>&1 &
+
+# Verify critical processes
+echo "=== STAR Status ==="
+ps aux | grep STAR | grep -v grep | head -2
+
+echo -e "\n=== Auto-shutdown Status ==="
+ps aux | grep auto_shutdown | grep -v grep
+
+echo -e "\n=== Last few lines of auto-shutdown log ==="
+tail -5 auto_shutdown.log
+
+# Force exit (ignores stopped jobs)
+exit -f
+
+#build the docker image
+docker build -t rna-seq-pipeline:v1 .
+
+#update code with github
+cd ~/rna-seq-project
+
+# Backup your local changes first
+cp workflow/main.nf workflow/main.nf.local
+cp nextflow.config nextflow.config.local
+cp containers/Dockerfile containers/Dockerfile.local
+
+# Discard local changes
+git reset --hard origin/main
+
+# Pull latest
+git pull origin main
+
+# Now manually merge the changes you want to keep
+
+#for salmon
+# Download GENCODE transcriptome (cDNA sequences)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_46/gencode.v46.transcripts.fa.gz
+
+# Decompress
+gunzip gencode.v46.transcripts.fa.gz
+
+#to do tomorrow
+# Run Salmon pipeline (fast, ~30 minutes)
+nextflow run workflow/main.nf -c nextflow.config
+
+# After completion, run DESeq2
+Rscript scripts/deseq2_analysis.R
+
+# Edit config to enable STAR
+sed -i 's/run_star     = false/run_star     = true/' nextflow.config
+
+# Run with STAR included
+nextflow run workflow/main.nf -c nextflow.config -resume
+
+# Run DESeq2 again (will analyze both methods)
+Rscript scripts/deseq2_analysis.R
+
+#run with tmux to wont crash 
+# Install tmux
+sudo apt update && sudo apt install -y tmux
+
+# Start tmux session
+tmux new -s pipeline
+
+# Inside tmux, run pipeline:
+cd ~/rna-seq-project
+nextflow run workflow/main.nf -c nextflow.config
+
+# Detach from tmux: Press Ctrl+B, then D
+# You can now disconnect safely
+
+#fix deseq2 not there error
+#re-run dockerfile
+docker build -t rna-seq-pipeline:v1 .
+
+#test if works
+docker run --rm rna-seq-pipeline:v1 R -e "library(DESeq2); print('DESeq2 Loaded Successfully')"
+
+# Run DESeq2 inside the Docker container
+#just run this in bash to run deseq2
+#to allow to edit
+sudo chmod -R 777 results/
+
+docker run --rm \
+  -v $(pwd):/data \
+  -w /data \
+  rna-seq-pipeline:v1 \
+  Rscript scripts/deseq2_analysis.R 
+
+
+#run this on my own machine to download my results
+scp -i "pipeline.pem" -r ubuntu@98.82.36.249:~/rna-seq-project/results ./rna-seq-results
+
+#run this to just get my deseq2 results
+scp -i "pipeline.pem" ubuntu@98.82.36.249:~/rna-seq-project/results/deseq2/*.pdf ./deseq2-plots/
+scp -i "pipeline.pem" ubuntu@98.82.36.249:~/rna-seq-project/results/deseq2/*.csv ./deseq2-data/
+
+#push everything to github
+# On EC2
+cd ~/rna-seq-project
+
+# Add .gitignore (exclude large files)
+cat > .gitignore << 'EOF'
+# Large data files
+data/raw/*.fastq.gz
+data/raw/SRR*
+data/reference/*.fa
+data/reference/*.gtf
+data/reference/star_index/
+*.fastq.gz
+
+# Nextflow work directory
+work/
+.nextflow/
+.nextflow.log*
+
+# Temporary files
+*.log
+nohup.out
+*_console.log
+*.local
+EOF
+
+# Commit and push
+git add -A
+git commit -m "Complete RNA-seq pipeline with Salmon and DESeq2 results"
+git push origin main
+git branch -m master main
+git push -u origin main
+#has ec2 results has master
+git push -u origin main --force
+
+#only pushed the essential files
+# 1. Reset the last commit (keep your files, but un-stage them)
+git reset --soft HEAD~1
+
+# 2. Remove the massive index and reference files from the staging area
+git rm -r --cached data/reference/
+git rm -r --cached results/reference/
+git rm -r --cached results/salmon/
+
+# 3. Re-commit only the "Portfolio Essentials"
+git add workflow/ scripts/ containers/ results/deseq2/ results/fastp/ .gitignore README.md
+git commit -m "Final: RNA-seq pipeline code and biological results"
+
+# 4. Push again (it should be much smaller and faster now)
+git push -u origin main --force
