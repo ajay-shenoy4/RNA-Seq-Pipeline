@@ -35,19 +35,19 @@
 
 ## 3. Top Gene Expression
 
-Top 50 DE Genes Heatmap (salmon_top50_genes_heatmap.pdf)
+**Top 50 DE Genes Heatmap (salmon_top50_genes_heatmap.pdf)**
 
-What it is: A zoomed-in look at the 50 genes with the lowest $p$-values.
+- What it is: A zoomed-in look at the 50 genes with the lowest $p$-values.
 
-What to look for: A clear "binary" pattern where one block of genes is bright red in WT and blue in KO (and vice-versa).
+- What to look for: A clear "binary" pattern where one block of genes is bright red in WT and blue in KO (and vice-versa).
 
-The Goal: This provides a "snapshot" of the most reliable biomarkers of your Knockout condition.
+- The Goal: This provides a "snapshot" of the most reliable biomarkers of your Knockout condition.
 
 ## 4. Tabular Data Output
 
-salmon_all_genes.csv: The master list of all 22,213 genes analyzed. Useful for custom searches.
+- salmon_all_genes.csv: The master list of all 22,213 genes analyzed. Useful for custom searches.
 
-salmon_significant_genes.csv: A filtered list containing only the 5,155 genes that passed the statistical threshold ($p_{adj} < 0.05$). This is the list you would typically use for downstream Gene Ontology (GO) or Pathway analysis.
+- salmon_significant_genes.csv: A filtered list containing only the 5,155 genes that passed the statistical threshold ($p_{adj} < 0.05$). This is the list you would typically use for downstream Gene Ontology (GO) or Pathway analysis.
 
 ## Summary of Biological Findings
 
