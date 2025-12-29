@@ -16,6 +16,9 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
     r-base=4.4.2 \
     bioconductor-deseq2 \
     bioconductor-tximport \
+    bioconductor-clusterprofiler \
+    bioconductor-org.hs.eg.db \
+    r-ggrepel \
     r-ggplot2 \
     r-pheatmap \
     r-rcolorbrewer \

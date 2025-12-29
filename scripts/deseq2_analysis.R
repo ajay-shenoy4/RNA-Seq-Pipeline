@@ -8,6 +8,9 @@ suppressPackageStartupMessages({
   library(pheatmap)
   library(RColorBrewer)
   library(dplyr)
+  library(clusterProfiler)
+  library(org.Hs.eg.db)
+  library(ggrepel)
 })
 
 cat("=======================================================\n")
@@ -16,182 +19,86 @@ cat("=======================================================\n\n")
 
 dir.create("results/deseq2", recursive = TRUE, showWarnings = FALSE)
 
-cat("--- SALMON ANALYSIS ---\n\n")
-
-salmon_files <- list.files("results/salmon", 
-                           pattern = "quant.sf$", 
-                           recursive = TRUE, 
-                           full.names = TRUE)
+salmon_files <- list.files("results/salmon", pattern = "quant.sf$", recursive = TRUE, full.names = TRUE)
 
 if (length(salmon_files) > 0) {
-  cat(sprintf("Found %d Salmon quantification files\n", length(salmon_files)))
-  
   sample_names <- gsub("_salmon/quant.sf", "", basename(dirname(salmon_files)))
   conditions <- ifelse(grepl("WT", sample_names), "WT", "KO")
-  
-  coldata_salmon <- data.frame(
-    sample = sample_names,
-    condition = factor(conditions, levels = c("WT", "KO")),
-    files = salmon_files,
-    row.names = sample_names
-  )
-  
-  cat("\nSalmon sample metadata:\n")
-  print(coldata_salmon[, c("sample", "condition")])
-  
+  coldata_salmon <- data.frame(sample = sample_names, condition = factor(conditions, levels = c("WT", "KO")), files = salmon_files, row.names = sample_names)
+
   gtf_file <- "data/reference/gencode.v46.annotation.gtf"
-  
   if (file.exists(gtf_file)) {
-    cat("\nCreating transcript-to-gene mapping from GTF...\n")
-    
-    # Read GTF and extract transcript/gene IDs properly
     gtf_lines <- readLines(gtf_file)
-    gtf_lines <- gtf_lines[!grepl("^#", gtf_lines)]  # Remove comments
-    
-    tx2gene_list <- lapply(gtf_lines, function(line) {
+    gtf_lines <- gtf_lines[!grepl("^#", gtf_lines)] 
+    tx2gene <- do.call(rbind, Filter(Negate(is.null), lapply(gtf_lines, function(line) {
       if (grepl("\ttranscript\t", line)) {
-        # Extract transcript_id
-        tx_match <- regmatches(line, regexpr('transcript_id "([^"]+)"', line))
-        tx_id <- gsub('transcript_id "([^"]+)"', '\\1', tx_match)
-        
-        # Extract gene_id  
-        gene_match <- regmatches(line, regexpr('gene_id "([^"]+)"', line))
-        gene_id <- gsub('gene_id "([^"]+)"', '\\1', gene_match)
-        
-        if (length(tx_id) > 0 && length(gene_id) > 0) {
-          # Remove version numbers for compatibility with Salmon
-          tx_id_clean <- sub("\\..*", "", tx_id)
-          gene_id_clean <- sub("\\..*", "", gene_id)
-          return(c(tx_id_clean, gene_id_clean))
-        }
+        tx_id <- gsub('.*transcript_id "([^"]+)".*', "\\1", line)
+        gene_id <- gsub('.*gene_id "([^"]+)".*', "\\1", line)
+        # We will keep both the Ensembl ID and the Symbol if possible
+        gene_name <- gsub('.*gene_name "([^"]+)".*', "\\1", line)
+        return(c(sub("\\..*", "", tx_id), sub("\\..*", "", gene_id), gene_name))
       }
       return(NULL)
-    })
-    
-    tx2gene <- do.call(rbind, Filter(Negate(is.null), tx2gene_list))
+    })))
     tx2gene <- as.data.frame(tx2gene, stringsAsFactors = FALSE)
-    colnames(tx2gene) <- c("transcript_id", "gene_id")
-    tx2gene <- distinct(tx2gene)
+    colnames(tx2gene) <- c("transcript_id", "gene_id", "gene_name")
     
-    cat(sprintf("Created tx2gene mapping with %d transcripts\n", nrow(tx2gene)))
+    txi <- tximport(coldata_salmon$files, type = "salmon", tx2gene = tx2gene[,1:2], ignoreTxVersion = TRUE)
+    dds <- DESeqDataSetFromTximport(txi, colData = coldata_salmon, design = ~condition)
+    dds <- DESeq(dds[rowSums(counts(dds)) >= 10, ])
+    res <- results(dds, contrast = c("condition", "KO", "WT"))
+    res <- res[order(res$pvalue), ]
+
+    # Map Ensembl IDs to Symbols for Plotting
+    res_df <- as.data.frame(res)
+    res_df$gene_id <- rownames(res_df)
+    res_df$symbol <- tx2gene$gene_name[match(res_df$gene_id, tx2gene$gene_id)]
     
-    # Import Salmon counts
-    cat("\nImporting Salmon counts...\n")
-    txi <- tximport(coldata_salmon$files, 
-                    type = "salmon", 
-                    tx2gene = tx2gene,
-                    ignoreTxVersion = TRUE)
-    
-    cat(sprintf("Imported counts for %d genes across %d samples\n", 
-                nrow(txi$counts), ncol(txi$counts)))
-    
-    # DESeq2 analysis
-    dds_salmon <- DESeqDataSetFromTximport(
-      txi,
-      colData = coldata_salmon,
-      design = ~ condition
-    )
-    
-    keep <- rowSums(counts(dds_salmon)) >= 10
-    dds_salmon <- dds_salmon[keep, ]
-    cat(sprintf("Kept %d genes after filtering\n", sum(keep)))
-    
-    cat("\nRunning DESeq2...\n")
-    dds_salmon <- DESeq(dds_salmon)
-    res_salmon <- results(dds_salmon, contrast = c("condition", "KO", "WT"))
-    res_salmon <- res_salmon[order(res_salmon$pvalue), ]
-    
-    cat("\nDESeq2 summary:\n")
-    summary(res_salmon)
-    
-    # Save results
-    res_salmon_df <- as.data.frame(res_salmon)
-    res_salmon_df$gene_id <- rownames(res_salmon_df)
-    res_salmon_df <- res_salmon_df[, c("gene_id", "baseMean", "log2FoldChange", 
-                                        "lfcSE", "stat", "pvalue", "padj")]
-    write.csv(res_salmon_df, "results/deseq2/salmon_all_genes.csv", row.names = FALSE)
-    
-    sig_salmon <- subset(res_salmon_df, padj < 0.05)
-    write.csv(sig_salmon, "results/deseq2/salmon_significant_genes.csv", row.names = FALSE)
-    
-    cat(sprintf("\nFound %d significantly DE genes (padj < 0.05)\n", nrow(sig_salmon)))
-    cat(sprintf("  - %d upregulated in KO\n", sum(sig_salmon$log2FoldChange > 0)))
-    cat(sprintf("  - %d downregulated in KO\n", sum(sig_salmon$log2FoldChange < 0)))
-    
-    # Visualizations
-    cat("\nGenerating visualizations...\n")
-    
-    pdf("results/deseq2/salmon_ma_plot.pdf", width = 8, height = 6)
-    plotMA(res_salmon, main = "MA Plot: KO vs WT", ylim = c(-5, 5), alpha = 0.05)
-    dev.off()
-    
-    volcano_salmon <- as.data.frame(res_salmon) %>%
-      mutate(
-        significance = case_when(
-          padj < 0.05 & log2FoldChange > 1 ~ "Up",
-          padj < 0.05 & log2FoldChange < -1 ~ "Down",
-          padj < 0.05 ~ "Sig",
-          TRUE ~ "NS"
-        )
-      )
-    
-    p_volcano <- ggplot(volcano_salmon, 
-                        aes(x = log2FoldChange, y = -log10(pvalue), color = significance)) +
-      geom_point(alpha = 0.5, size = 1) +
-      scale_color_manual(
-        values = c("Up" = "red", "Down" = "blue", "Sig" = "orange", "NS" = "gray70")
-      ) +
-      geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
-      geom_vline(xintercept = c(-1, 1), linetype = "dashed") +
-      labs(title = "Volcano Plot: KO vs WT",
-           x = "log2(Fold Change)", y = "-log10(p-value)") +
-      theme_bw()
-    
-    ggsave("results/deseq2/salmon_volcano_plot.pdf", p_volcano, width = 8, height = 6)
-    
-    vsd_salmon <- vst(dds_salmon, blind = FALSE)
-    
-    pdf("results/deseq2/salmon_pca_plot.pdf", width = 7, height = 5)
-    plotPCA(vsd_salmon, intgroup = "condition") + 
-      theme_bw() +
-      ggtitle("PCA: Sample Clustering")
-    dev.off()
-    
-    sampleDists <- dist(t(assay(vsd_salmon)))
-    sampleDistMatrix <- as.matrix(sampleDists)
-    colnames(sampleDistMatrix) <- NULL
-    
-    pdf("results/deseq2/salmon_sample_distance_heatmap.pdf", width = 7, height = 6)
-    pheatmap(sampleDistMatrix,
-             clustering_distance_rows = sampleDists,
-             clustering_distance_cols = sampleDists,
-             col = colorRampPalette(rev(brewer.pal(9, "Blues")))(255),
-             main = "Sample-to-Sample Distances")
-    dev.off()
-    
-    top_genes <- head(order(res_salmon$padj), 50)
-    mat <- assay(vsd_salmon)[rownames(res_salmon)[top_genes], ]
+    write.csv(res_df, "results/deseq2/salmon_all_genes.csv", row.names = FALSE)
+
+    # 1. Volcano Plot with proper labels
+    volcano_data <- res_df %>%
+      mutate(neglog10p = -log10(pvalue),
+             sig = case_when(padj < 0.05 & log2FoldChange > 1 ~ "Up",
+                             padj < 0.05 & log2FoldChange < -1 ~ "Down",
+                             padj < 0.05 ~ "Sig", TRUE ~ "NS"),
+             label = ifelse(neglog10p > 20 | symbol == "DUS1L", symbol, NA))
+
+    p_volc <- ggplot(volcano_data, aes(x=log2FoldChange, y=neglog10p, color=sig)) +
+      geom_point(alpha=0.4) +
+      geom_text_repel(aes(label=label), max.overlaps = 15) +
+      scale_color_manual(values=c("Up"="red", "Down"="blue", "Sig"="orange", "NS"="grey")) +
+      theme_bw() + labs(title="Volcano Plot: KO vs WT")
+    ggsave("results/deseq2/salmon_volcano_plot.pdf", p_volc, width=8, height=6)
+
+    # 2. Functional Heatmap with Error Handling
+    vsd <- vst(dds, blind=FALSE)
+    top_idx <- head(order(res$padj), 50)
+    mat <- assay(vsd)[top_idx, ]
+    rownames(mat) <- res_df$symbol[match(rownames(mat), res_df$gene_id)]
     mat <- mat - rowMeans(mat)
-    
-    annotation_col <- data.frame(
-      Condition = coldata_salmon$condition,
-      row.names = rownames(coldata_salmon)
-    )
-    
-    pdf("results/deseq2/salmon_top50_genes_heatmap.pdf", width = 8, height = 10)
-    pheatmap(mat,
-             annotation_col = annotation_col,
-             cluster_rows = TRUE,
-             show_rownames = FALSE,
-             main = "Top 50 DE Genes",
-             color = colorRampPalette(c("blue", "white", "red"))(100))
+
+    # Attempt GO Enrichment
+    ego <- tryCatch({
+      enrichGO(gene = rownames(mat), OrgDb = org.Hs.eg.db, keyType = "SYMBOL", ont = "BP")
+    }, error = function(e) NULL)
+
+    ann_row <- NULL
+    if (!is.null(ego) && nrow(ego) > 0) {
+      gene2go <- setNames(ego@result$Description[match(rownames(mat), ego@result$geneID)], rownames(mat))
+      gene2go[is.na(gene2go)] <- "Other"
+      ann_row <- data.frame(Process = gene2go, row.names = rownames(mat))
+    }
+
+    pdf("results/deseq2/salmon_top50_genes_heatmap.pdf", width = 10, height = 12)
+    pheatmap(mat, annotation_col = data.frame(Cond = coldata_salmon$condition, row.names = colnames(mat)),
+             annotation_row = ann_row, main = "Top 50 DE Genes", color = colorRampPalette(c("blue", "white", "red"))(100))
     dev.off()
     
+    # 3. Standard Plots
+    pdf("results/deseq2/salmon_pca_plot.pdf", width=7, height=5)
+    print(plotPCA(vsd, intgroup="condition") + theme_bw())
+    dev.off()
   }
 }
-
-writeLines(capture.output(sessionInfo()), "results/deseq2/session_info.txt")
-
-cat("\n=======================================================\n")
-cat("✓ Analysis complete!\n")
-cat("=======================================================\n\n")
+cat("\n✓ Analysis complete!\n")
